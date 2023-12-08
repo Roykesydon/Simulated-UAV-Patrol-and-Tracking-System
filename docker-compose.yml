@@ -1,0 +1,36 @@
+version: '3.7'
+
+services:
+  in-service:
+    image: roykesydone/om2m_in-cse
+    restart: always
+    ports:
+      - 9332:8080
+    volumes:
+      - ./om2m-configuration/in-configuration:/incse/configuration
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      iot-final-network:
+        ipv4_address: 10.5.0.2
+
+  patrol-drone-1:
+    image: roykesydone/om2m_mn-cse
+    restart: always
+    ports:
+      - 9333:8282
+    volumes:
+      - ./om2m-configuration/patrol-drone-1-configuration:/mncse/configuration
+    networks:
+      iot-final-network:
+        ipv4_address: 10.5.0.3
+    depends_on:
+      - in-service
+
+networks:
+  iot-final-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1
