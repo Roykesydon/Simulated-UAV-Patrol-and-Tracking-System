@@ -6,6 +6,7 @@ from pathlib import Path
 
 import requests
 import uvicorn
+import xmltodict
 from domain.drone.PatrolDrone import (PatrolDrone, PatrolDroneEvent,
                                       PatrolDroneStatus)
 from fastapi import APIRouter, BackgroundTasks, FastAPI, Request
@@ -30,6 +31,7 @@ drone_list = [
             om2m_request_sender,
             drone_api_session,
             track_drone_api_session,
+            config.PATROL_DRONE_1_MN_URL,
         ),
         "patrol_trail": [
             [40, 50],
@@ -48,6 +50,7 @@ drone_list = [
             om2m_request_sender,
             drone_api_session,
             track_drone_api_session,
+            config.PATROL_DRONE_2_MN_URL,
         ),
         "patrol_trail": [
             [60, 50],
@@ -66,6 +69,7 @@ drone_list = [
             om2m_request_sender,
             drone_api_session,
             track_drone_api_session,
+            config.PATROL_DRONE_3_MN_URL,
         ),
         "patrol_trail": [
             [30, 50],
@@ -91,13 +95,36 @@ def drone_update():
             position[0] = int(position[0])
             position[1] = int(position[1])
 
-            # send request to self api
-            drone_api_session.put(
-                f"{config.PATROL_DRONE_URL}/{index}/position",
-                json={"position": position},
+            URL_MAP = {
+                0: config.PATROL_DRONE_1_MN_URL,
+                1: config.PATROL_DRONE_2_MN_URL,
+                2: config.PATROL_DRONE_3_MN_URL,
+            }
+            om2m_request_sender.create_content_instance(
+                f"{URL_MAP[index]}/~/mn-cse/mn-name",
+                drone["app_name"],
+                "info",
+                {
+                    "app_name": drone["app_name"],
+                    "position": drone["position"],
+                    "status": drone["drone"].get_status_as_string(),
+                },
             )
 
         time.sleep(0.7)
+
+
+def subscribe_in_control():
+    time.sleep(5)
+    for drone in drone_list:
+        # subcribe in server for control container
+        om2m_request_sender.subscribe(
+            f"{config.IN_URL}/~/in-cse/in-name",
+            drone["app_name"],
+            "control",
+            f"{config.PATROL_DRONE_URL_FROM_CONTAINER}/process_control",
+            "MN_CONTROL_SUB",
+        )
 
 
 @asynccontextmanager
@@ -105,25 +132,66 @@ async def lifespan(app: FastAPI):
     """
     Create thread for each drone
     """
-    for drone in drone_list:
+    for index, drone in enumerate(drone_list):
         app_name = drone["app_name"]
+
+        URL_MAP = {
+            0: config.PATROL_DRONE_1_MN_URL,
+            1: config.PATROL_DRONE_2_MN_URL,
+            2: config.PATROL_DRONE_3_MN_URL,
+        }
+
+        PATROL_DRONE_MN_URL = URL_MAP[index]
+
         # create mn data conatiner
         om2m_request_sender.create_application(
-            f"{config.MN_URL}/~/mn-cse",
+            f"{PATROL_DRONE_MN_URL}/~/mn-cse",
             app_name,
             {"Type": "patrol-drone", "Category": "drone"},
         )
-        om2m_request_sender.create_container(
-            f"{config.MN_URL}/~/mn-cse/mn-name", app_name, "status_container"
+        om2m_request_sender.create_application(
+            f"{config.IN_URL}/~/in-cse/in-name",
+            app_name,
+            {"Type": "patrol-drone", "Category": "drone"},
         )
 
+        # create info container
+        om2m_request_sender.create_container(
+            f"{PATROL_DRONE_MN_URL}/~/mn-cse/mn-name", app_name, "info"
+        )
+        om2m_request_sender.create_container(
+            f"{config.IN_URL}/~/in-cse/in-name", app_name, "info"
+        )
+        # subscribe info container for in server
+        om2m_request_sender.subscribe(
+            f"{PATROL_DRONE_MN_URL}/~/mn-cse/mn-name",
+            app_name,
+            "info",
+            f"{config.IN_APP_POA}/process_info",
+            "IN_INFO_SUB",
+        )
+
+        # create event container
+        om2m_request_sender.create_container(
+            f"{PATROL_DRONE_MN_URL}/~/mn-cse/mn-name", app_name, "event"
+        )
+        om2m_request_sender.create_container(
+            f"{config.IN_URL}/~/in-cse/in-name", app_name, "event"
+        )
         # subscribe status container for in server
         om2m_request_sender.subscribe(
-            f"{config.MN_URL}/~/mn-cse/mn-name",
+            f"{PATROL_DRONE_MN_URL}/~/mn-cse/mn-name",
             app_name,
-            "status_container",
-            config.IN_APP_POA,
-            "IN_STATUS_SUB",
+            "event",
+            f"{config.IN_APP_POA}/process_event",
+            "IN_EVENT_SUB",
+        )
+
+        om2m_request_sender.create_container(
+            f"{PATROL_DRONE_MN_URL}/~/mn-cse/mn-name", app_name, "control"
+        )
+        om2m_request_sender.create_container(
+            f"{config.IN_URL}/~/in-cse/in-name", app_name, "control"
         )
 
         drone["drone"].set_patrol_trail(drone["patrol_trail"])
@@ -132,6 +200,11 @@ async def lifespan(app: FastAPI):
     all_threads.append(
         threading.Thread(
             target=drone_update,
+        )
+    )
+    all_threads.append(
+        threading.Thread(
+            target=subscribe_in_control,
         )
     )
 
@@ -170,39 +243,78 @@ app.add_middleware(
 )
 
 
-@api_router.get("/{drone_index}/position")
-def get_position(drone_index: int):
-    return {"position": drone_list[drone_index]["position"]}
+def xml_to_dict(xml):
+    xml = xmltodict.parse(xml)
+    content = xml["m2m:sgn"]["nev"]["rep"]["m2m:cin"]["con"]
+    content = xmltodict.parse(content)
+    content = content["obj"]["str"]
+    content = {item["@name"]: item["@val"] for item in content}
+    return content
 
 
-@api_router.put("/{drone_index}/position")
-def update_position(drone_index: int, position: Position):
-    position = position.model_dump()["position"]
-    drone_list[drone_index]["position"] = position
+@api_router.post("/process_control")
+async def process_control(request: Request):
+    content_type = request.headers["Content-Type"]
+    if content_type == "application/xml":
+        body = await request.body()
 
-    return {}
+        try:
+            content = xml_to_dict(body)
+            app_name = content["app_name"]
+
+            om2m_request_sender.create_content_instance(
+                f"{config.TRACK_DRONE_1_MN_URL}/~/mn-cse/mn-name",
+                app_name,
+                "control",
+                content,
+            )
+
+            if content["command"] == "START_PATROLLING":
+                for index, drone in enumerate(drone_list):
+                    if drone["app_name"] == app_name:
+                        drone["drone"].set_status(PatrolDroneStatus.PATROLLING)
+                        break
+            elif content["command"] == "BACKING_TO_BASE":
+                for index, drone in enumerate(drone_list):
+                    if drone["app_name"] == app_name:
+                        drone["drone"].set_status(PatrolDroneStatus.BACKING_TO_BASE)
+                        break
+            elif content["command"] == "TRACKING":
+                for index, drone in enumerate(drone_list):
+                    if drone["app_name"] == app_name:
+                        drone["drone"].set_status(PatrolDroneStatus.TRACKING)
+                        break
+
+        except Exception as e:
+            print("process_control error")
+            print(xmltodict.parse(body))
 
 
-@api_router.put("/{drone_index}/status")
-def update_status(drone_index: int, status: Status):
-    status = status.model_dump()["status"]
-    status_mapping = {
-        "WAITING_FOR_COMMAND": PatrolDroneStatus.WAITING_FOR_COMMAND,
-        "PATROLLING": PatrolDroneStatus.PATROLLING,
-        "TRACKING": PatrolDroneStatus.TRACKING,
-        "BACKING_TO_BASE": PatrolDroneStatus.BACKING_TO_BASE,
+{
+    "m2m:sgn": {
+        "@xmlns:m2m": "http://www.onem2m.org/xml/protocols",
+        "@xmlns:hd": "http://www.onem2m.org/xml/protocols/homedomain",
+        "nev": {
+            "rep": {
+                "m2m:cin": {
+                    "@rn": "cin_625970953",
+                    "ty": "4",
+                    "ri": "/in-cse/cin-625970953",
+                    "pi": "/in-cse/cnt-853701029",
+                    "ct": "20231214T141442",
+                    "lt": "20231214T141442",
+                    "st": "0",
+                    "cnf": "message",
+                    "cs": "81",
+                    "con": '<obj>\n            <str name="command" val="START_PATROLLING"/>\n            </obj>',
+                }
+            },
+            "rss": "1",
+        },
+        "sud": "false",
+        "sur": "/in-cse/sub-582620975",
     }
-    if status not in status_mapping:
-        return {"msg": "status not found"}
-    drone_list[drone_index]["drone"].set_status(status_mapping[status])
-
-    return {}
-
-
-@api_router.get("/{drone_index}/status")
-def get_status(drone_index: int):
-    return {"status": drone_list[drone_index]["drone"].get_status_as_string()}
-
+}
 
 app.include_router(api_router)
 

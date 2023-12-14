@@ -162,10 +162,11 @@ const getNotificationDroneName = (app_name: string) => {
   else if (app_name === "patrol_drone_1") return "巡邏一號機";
   else if (app_name === "patrol_drone_2") return "巡邏二號機";
   else if (app_name === "patrol_drone_3") return "巡邏三號機";
+  else if (app_name === "in_server") return "管理伺服器";
 };
 const getNotificationEvent = (event: string) => {
   if (event === "FOUND_TARGET") return "偵測到可疑人員";
-  else if (event === "START_PATROLLING") return "開始巡邏";
+  else if (event === "START_PATROLLING") return "所有巡邏機開始巡邏";
   else if (event === "TARGET_LEFT") return "可疑人員已離開警戒區";
 };
 
@@ -176,6 +177,7 @@ const mappingStatus = (status: string) => {
   else if (status === "TRACKING") return "追蹤中";
   else if (status === "BACKING_TO_BASE") return "返航中";
   else if (status === "SEARCHING") return "搜索中";
+  else if (status === "NULL") return "未連接";
 };
 
 const droneStatusColor = (status: string) => {
@@ -189,25 +191,25 @@ const droneStatusColor = (status: string) => {
 let drones = reactive([
   {
     name: "追蹤一號機",
-    status: "WAITING_FOR_COMMAND",
+    status: "NULL",
     color: "primary",
     img: "/src/assets/track-drone.png",
   },
   {
     name: "巡邏一號機",
-    status: "WAITING_FOR_COMMAND",
+    status: "NULL",
     color: "secondary",
     img: "/src/assets/patrol-drone.png",
   },
   {
     name: "巡邏二號機",
-    status: "WAITING_FOR_COMMAND",
+    status: "NULL",
     color: "secondary",
     img: "/src/assets/patrol-drone.png",
   },
   {
     name: "巡邏三號機",
-    status: "WAITING_FOR_COMMAND",
+    status: "NULL",
     color: "secondary",
     img: "/src/assets/patrol-drone.png",
   },
@@ -236,24 +238,26 @@ setInterval(() => {
     });
 }, 700);
 
-// fetch track drone position
+// fetch track drone position ans status
 setInterval(() => {
-  fetch("http://localhost:8126/0/position")
+  fetch("http://localhost:8127/track_drone/0/info")
     .then((res) => res.json())
     .then((data) => {
       dronePosition[0][0] = data.position[0];
       dronePosition[0][1] = data.position[1];
+      drones[0]["status"] = data.status;
     });
 }, 700);
 
 // fetch patrol drone position
 for (let i = 1; i <= 3; i++) {
   setInterval(() => {
-    fetch("http://localhost:8125" + "/" + (i - 1) + "/position")
+    fetch("http://localhost:8127" + "/patrol_drone/" + (i - 1) + "/info")
       .then((res) => res.json())
       .then((data) => {
         dronePosition[i][0] = data.position[0];
         dronePosition[i][1] = data.position[1];
+        drones[i]["status"] = data.status;
       });
   }, 700);
 }
@@ -267,24 +271,6 @@ setInterval(() => {
     });
 }, 700);
 
-// fetch drone status
-setInterval(() => {
-  fetch("http://localhost:8126/0/status")
-    .then((res) => res.json())
-    .then((data) => {
-      drones[0]["status"] = data.status;
-    });
-}, 700);
-for (let i = 0; i < 3; i++) {
-  setInterval(() => {
-    fetch("http://localhost:8125" + "/" + i + "/status")
-      .then((res) => res.json())
-      .then((data) => {
-        drones[i + 1]["status"] = data.status;
-      });
-  }, 700);
-}
-
 // fetch target is being tracked
 setInterval(() => {
   let trackFlag = false;
@@ -295,7 +281,7 @@ setInterval(() => {
     }
   }
   targetIsBeingTracked.value = trackFlag;
-}, 700);
+}, 350);
 </script>
 
 <style scoped>

@@ -77,7 +77,7 @@ class TrackDrone(BaseDrone):
                 return
 
             response = self._patrol_drone_api_session.get(
-                f"{self._config.PATROL_DRONE_URL}/{self._follow_patrol_index}/status"
+                f"{self._config.IN_APP_POA}/patrol_drone/{self._follow_patrol_index}/info"
             )
             if response.status_code == 200:
                 if response.json()["status"] != "TRACKING":
@@ -86,7 +86,7 @@ class TrackDrone(BaseDrone):
                     return
 
             follow_patrol_drone_position = self._patrol_drone_api_session.get(
-                f"{self._config.PATROL_DRONE_URL}/{self._follow_patrol_index}/position"
+                f"{self._config.IN_APP_POA}/patrol_drone/{self._follow_patrol_index}/info"
             ).json()["position"]
             self.move_to(
                 follow_patrol_drone_position[0], follow_patrol_drone_position[1]
@@ -107,26 +107,22 @@ class TrackDrone(BaseDrone):
     def notify_server(self, event):
         if event == TrackDroneEvent.START_TRACKING:
             self._om2m_request_sender.create_content_instance(
-                f"{self._config.MN_URL}/~/mn-cse/mn-name",
+                f"{self._config.TRACK_DRONE_1_MN_URL}/~/mn-cse/mn-name",
                 self._app_name,
-                "status_container",
+                "event",
                 {
-                    "app_name": self._app_name,
-                    "status": self.get_status_as_string(),
                     "event": "START_TRACKING",
-                    "position": self._position,
+                    "app_name": self._app_name,
                 },
             )
         elif event == TrackDroneEvent.TARGET_LEFT:
             self._om2m_request_sender.create_content_instance(
-                f"{self._config.MN_URL}/~/mn-cse/mn-name",
+                f"{self._config.TRACK_DRONE_1_MN_URL}/~/mn-cse/mn-name",
                 self._app_name,
-                "status_container",
+                "event",
                 {
-                    "app_name": self._app_name,
-                    "status": self.get_status_as_string(),
                     "event": "TARGET_LEFT",
-                    "position": self._position,
+                    "app_name": self._app_name,
                 },
             )
 

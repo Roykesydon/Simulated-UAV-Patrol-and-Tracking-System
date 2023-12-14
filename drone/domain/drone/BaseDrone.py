@@ -29,12 +29,12 @@ class BaseDrone(ABC):
         x_diff = x - self._position[0]
         y_diff = y - self._position[1]
 
-        print("--- move to ---")
-        print(f"old_position: {self._position}")
-        print(f"time_elapsed: {time.time() - self._last_update_time}")
-        print(f"speed: {self._speed}")
-        print(f"x_diff: {x_diff}")
-        print(f"y_diff: {y_diff}")
+        # print("--- move to ---")
+        # print(f"old_position: {self._position}")
+        # print(f"time_elapsed: {time.time() - self._last_update_time}")
+        # print(f"speed: {self._speed}")
+        # print(f"x_diff: {x_diff}")
+        # print(f"y_diff: {y_diff}")
 
         min_xy_diff = min(abs(x_diff), abs(y_diff))
 
@@ -84,9 +84,6 @@ class BaseDrone(ABC):
 
         self._position = self._simulation_map.stay_in_bounds(new_position)
         self._last_update_time = time.time()
-
-        print(f"new_position: {self._position}")
-        print("---")
 
     def get_status(self):
         return self._status

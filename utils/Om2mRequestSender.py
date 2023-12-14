@@ -3,7 +3,13 @@ import requests
 
 class Om2mRequestSender:
     def __init__(self):
+        self.session_dict = {}
         pass
+
+    def _get_session(self, url):
+        if url not in self.session_dict:
+            self.session_dict[url] = requests.Session()
+        return self.session_dict[url]
 
     def create_application(self, url, app_name, labels: dict, poa=None):
         headers = {
@@ -16,25 +22,27 @@ class Om2mRequestSender:
             <m2m:ae xmlns:m2m="http://www.onem2m.org/xml/protocols" rn="{app_name}">
             <api>app-sensor</api>
             <lbl>{ " ".join([f"{key}/{value}" for key, value in labels.items()]) }</lbl>
-            <rr>false</rr>
+            <rr>true</rr>
             {"<poa>" + poa + "</poa>" if poa else ""}
             </m2m:ae>"""
 
-        response = requests.post(url, headers=headers, data=body)
-        print(response.text)
+        session = self._get_session(url)
+        response = session.post(url, headers=headers, data=body)
 
     def create_container(self, url, app_name, container_name):
         headers = {
             "Content-Type": "application/xml;ty=3",
             "X-M2M-Origin": "admin:admin",
         }
-
+        # set mni = 10
         body = f"""<?xml version="1.0" encoding="UTF-8"?>
-            <m2m:cnt xmlns:m2m="http://www.onem2m.org/xml/protocols" rn="{container_name}"/>
+            <m2m:cnt xmlns:m2m="http://www.onem2m.org/xml/protocols" rn="{container_name}">
+            <mni>10</mni>
+            </m2m:cnt>
             """
 
-        response = requests.post(url + "/" + app_name, headers=headers, data=body)
-        print(response.text)
+        session = self._get_session(url)
+        response = session.post(url + "/" + app_name, headers=headers, data=body)
 
     def subscribe(
         self, url, app_name, container_name, notification_url, subscription_name
@@ -51,10 +59,10 @@ class Om2mRequestSender:
             </m2m:sub>
             """
 
-        response = requests.post(
+        session = self._get_session(url)
+        response = session.post(
             url + "/" + app_name + "/" + container_name, headers=headers, data=body
         )
-        print(response.text)
 
     def create_content_instance(self, url, app_name, container_name, content: dict):
         headers = {
@@ -71,7 +79,19 @@ class Om2mRequestSender:
             </m2m:cin>
             """
 
-        response = requests.post(
+        session = self._get_session(url)
+        response = session.post(
             url + "/" + app_name + "/" + container_name, headers=headers, data=body
         )
-        print(response.text)
+
+    def get_latest_content_instance(self, url, app_name, container_name):
+        headers = {
+            "Accept": "application/json",
+            "X-M2M-Origin": "admin:admin",
+        }
+        session = self._get_session(url)
+        response = session.get(
+            url + "/" + app_name + "/" + container_name + "/la", headers=headers
+        )
+
+        return response.json()

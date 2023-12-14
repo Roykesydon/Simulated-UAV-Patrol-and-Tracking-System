@@ -28,6 +28,7 @@ class PatrolDrone(BaseDrone):
         om2m_request_sender,
         drone_api_session,
         track_drone_api_session,
+        mn_url,
     ) -> None:
         super().__init__()
         self._simulation_map = SimulationMap()
@@ -53,40 +54,13 @@ class PatrolDrone(BaseDrone):
         # api
         self._drone_api_session = drone_api_session
         self._track_drone_api_session = track_drone_api_session
+        self._mn_url = mn_url
 
     # Override
     def update(self):
         target_position = self._get_target_position()
 
         if self.get_status() == PatrolDroneStatus.WAITING_FOR_COMMAND:
-            ## check if all drones are waiting for command
-            all_waiting = True
-            for i in range(3):
-                response = self._drone_api_session.get(
-                    f"{self._config.PATROL_DRONE_URL}/{i}/status"
-                )
-                if response.status_code == 200:
-                    if response.json()["status"] != "WAITING_FOR_COMMAND":
-                        all_waiting = False
-                        break
-
-            response = self._track_drone_api_session.get(
-                f"{self._config.TRACK_DRONE_URL}/0/status"
-            )
-            if response.status_code == 200:
-                if response.json()["status"] != "WAITING_FOR_COMMAND":
-                    all_waiting = False
-            print("track drone status", response.json()["status"])
-
-            if not all_waiting:
-                return
-
-            for i in range(3):
-                self._drone_api_session.put(
-                    f"{self._config.PATROL_DRONE_URL}/{i}/status",
-                    json={"status": "PATROLLING"},
-                )
-            self.notify_server(PatrolDroneEvent.START_PATROLLING)
             self._last_update_time = time.time()
 
         elif self.get_status() == PatrolDroneStatus.BACKING_TO_BASE:
@@ -109,7 +83,6 @@ class PatrolDrone(BaseDrone):
 
         elif self.get_status() == PatrolDroneStatus.TRACKING:
             if self._float_position_equal(target_position, [-100, -100]):
-                print("target left")
                 self.set_status(PatrolDroneStatus.BACKING_TO_BASE)
                 self.notify_server(PatrolDroneEvent.TARGET_LEFT)
             else:
@@ -118,38 +91,22 @@ class PatrolDrone(BaseDrone):
     def notify_server(self, event):
         if event == PatrolDroneEvent.FOUND_TARGET:
             self._om2m_request_sender.create_content_instance(
-                f"{self._config.MN_URL}/~/mn-cse/mn-name",
+                f"{self._mn_url}/~/mn-cse/mn-name",
                 self._app_name,
-                "status_container",
+                "event",
                 {
-                    "app_name": self._app_name,
-                    "status": self.get_status_as_string(),
                     "event": "FOUND_TARGET",
-                    "position": self._position,
-                },
-            )
-        elif event == PatrolDroneEvent.START_PATROLLING:
-            self._om2m_request_sender.create_content_instance(
-                f"{self._config.MN_URL}/~/mn-cse/mn-name",
-                self._app_name,
-                "status_container",
-                {
                     "app_name": self._app_name,
-                    "status": self.get_status_as_string(),
-                    "event": "START_PATROLLING",
-                    "position": self._position,
                 },
             )
         elif event == PatrolDroneEvent.TARGET_LEFT:
             self._om2m_request_sender.create_content_instance(
-                f"{self._config.MN_URL}/~/mn-cse/mn-name",
+                f"{self._mn_url}/~/mn-cse/mn-name",
                 self._app_name,
-                "status_container",
+                "event",
                 {
-                    "app_name": self._app_name,
-                    "status": self.get_status_as_string(),
                     "event": "TARGET_LEFT",
-                    "position": self._position,
+                    "app_name": self._app_name,
                 },
             )
 

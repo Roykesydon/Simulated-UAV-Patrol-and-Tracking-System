@@ -27,6 +27,45 @@ services:
     depends_on:
       - in-service
 
+  patrol-drone-2:
+    image: roykesydone/om2m_mn-cse
+    restart: always
+    ports:
+      - 9334:8282
+    volumes:
+      - ./om2m-configuration/patrol-drone-1-configuration:/mncse/configuration
+    networks:
+      iot-final-network:
+        ipv4_address: 10.5.0.4
+    depends_on:
+      - in-service
+
+  patrol-drone-3:
+    image: roykesydone/om2m_mn-cse
+    restart: always
+    ports:
+      - 9335:8282
+    volumes:
+      - ./om2m-configuration/patrol-drone-1-configuration:/mncse/configuration
+    networks:
+      iot-final-network:
+        ipv4_address: 10.5.0.5
+    depends_on:
+      - in-service
+
+  track-drone-1:
+    image: roykesydone/om2m_mn-cse
+    restart: always
+    ports:
+      - 9336:8282
+    volumes:
+      - ./om2m-configuration/patrol-drone-1-configuration:/mncse/configuration
+    networks:
+      iot-final-network:
+        ipv4_address: 10.5.0.6
+    depends_on:
+      - in-service
+
 networks:
   iot-final-network:
     driver: bridge
