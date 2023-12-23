@@ -3,6 +3,11 @@
 ## Demo
 ![Demo GIF](/demo/github-demo.gif)
 
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/YOUTUBE_VIDEO_ID_HERE/0.jpg)](https://www.youtube.com/watch?v=YOUTUBE_VIDEO_ID_HERE)
+
+## Documentation
+- Final Project Report: `/demo/P76124168_物聯網_期末提案.pdf`
+
 ## Introduction
 This is a simulated drone patrol and tracking system based on OM2M.
 
@@ -15,6 +20,7 @@ The tracking drone usually stays at the base and starts its tracking mission onl
 ## Pre-requisites
 - Docker
 - python3
+- node.js
 
 ## How to run (Development)
 1.  Install python dependencies 
@@ -22,7 +28,7 @@ The tracking drone usually stays at the base and starts its tracking mission onl
         pip install -r requirements.txt
         ```
 
-2. Run OM2M CSE, and wait for setup to complete
+2. Run OM2M CSE, and wait for it to be ready
     - ```bash
         docker-compose up
         ```
@@ -69,6 +75,90 @@ The tracking drone usually stays at the base and starts its tracking mission onl
 - 9334: Patrol-Drone-MN-CSE-2 (8282)
 - 9335: Patrol-Drone-MN-CSE-3 (8282)
 - 9336: Track-Drone-MN-CSE-1 (8282)
+
+## Structure
+```bash
+.
+├── README.md # This file
+├── config.py # Configuration file
+├── demo # Demonstration files
+│   └── github-demo.gif
+├── docker-compose.yml # Use to run OM2M CSE
+├── drone # Drone API
+│   ├── domain # Drone domain
+│   │   ├── SimulationMap.py # Simulated Environment Controller
+│   │   └── drone
+│   │       ├── BaseDrone.py
+│   │       ├── PatrolDrone.py
+│   │       └── TrackDrone.py
+│   ├── patrol_drone_app.py # Patrol Drone API (MN-AE)
+│   └── track_drone_app.py # Track Drone API (MN-AE)
+├── format.py # Python code formatter
+├── gcs-application # Frontend
+│   ├── README.md
+│   ├── index.html
+│   ├── package-lock.json
+│   ├── package.json # Frontend dependencies
+│   ├── public
+│   │   └── favicon.ico
+│   ├── src
+│   │   ├── App.vue
+│   │   ├── assets # Icons
+│   │   │   ├── alarm.png
+│   │   │   ├── check.png
+│   │   │   ├── embassy.png
+│   │   │   ├── info.png
+│   │   │   ├── logo.png
+│   │   │   ├── logo.svg
+│   │   │   ├── patrol-drone.png
+│   │   │   ├── suspicious.png
+│   │   │   └── track-drone.png
+│   │   ├── components
+│   │   │   └── HelloWorld.vue
+│   │   ├── layouts
+│   │   │   └── default
+│   │   │       ├── AppBar.vue
+│   │   │       ├── Default.vue
+│   │   │       └── View.vue
+│   │   ├── main.ts
+│   │   ├── plugins
+│   │   │   ├── index.ts
+│   │   │   └── vuetify.ts
+│   │   ├── router
+│   │   │   └── index.ts
+│   │   ├── store
+│   │   │   ├── app.ts
+│   │   │   └── index.ts
+│   │   ├── styles
+│   │   │   └── settings.scss
+│   │   ├── views
+│   │   │   └── Home.vue
+│   │   └── vite-env.d.ts
+│   ├── tsconfig.json
+│   ├── tsconfig.node.json
+│   └── vite.config.ts
+├── in_server # IN-Server (IN-AE)
+│   ├── app.py
+│   └── routes # blueprint
+│       ├── enviroment.py
+│       ├── patrol_drone.py
+│       └── track_drone.py
+├── om2m-configuration # OM2M CSE configuration files
+│   ├── in-configuration # IN
+│   │   └── config.ini
+│   └── patrol-drone-1-configuration # MN
+│       └── config.ini
+├── requirements.txt # Python dependencies
+├── simulated_enviroment # Simulated Enviroment
+│   ├── app.py
+│   ├── controller
+│   │   └── human_route.py
+│   └── domain
+│       ├── Human.py
+│       └── SimulationMap.py
+└── utils # Utilities
+    └── Om2mRequestSender.py
+```
 
 ## Icon References
 
