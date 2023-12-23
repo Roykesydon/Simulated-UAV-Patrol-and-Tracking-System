@@ -1,8 +1,9 @@
 # Simulated UAV Patrol and Tracking System
 
-## Demo
+## Youtube Video Demo
 [![Youtube Demo video](https://img.youtube.com/vi/_HDSsUqiI4Q/0.jpg)](https://www.youtube.com/watch?v=_HDSsUqiI4Q)
 
+## GIF Demo
 ![Demo GIF](/demo/github-demo.gif)
 
 ## Documentation
